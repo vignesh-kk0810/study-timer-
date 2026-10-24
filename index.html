@@ -201,6 +201,7 @@ body.fs header,body.fs .invite,body.fs .tools .nofs{display:none}
         <button class="btn small" id="fsBtn">Full screen</button>
         <button class="btn small" id="soundBtn">Sound: on</button>
         <button class="btn small" id="alertBtn">Alerts: off</button>
+        <button class="btn small" id="stopBtn" title="Stop following this session on this device">Stop</button>
         <button class="btn small nofs" id="newBtn">New timer</button>
       </div>
     </div>
@@ -543,19 +544,32 @@ function totalSec(cfg){ return cfg.c*cfg.f*60+(cfg.c-1)*cfg.b*60; }
     if(!cfg) return;
     eff=effective(cfg,now());
     var x=compute(eff,now()), o=view(x);
-    $('timerView').dataset.state=x.st;
+    var stopped=(stoppedKey===cfg.code+'|'+eff.s)&&x.st!=='done';
+    if(stopped){ o={big:'--:--',label:'Stopped on this device',sub:'Tap Resume to follow the group timer again.',p:0,bar:0,tab:'Stopped'}; }
+    $('stopBtn').textContent=stopped?'Resume':'Stop';
+    $('stopBtn').classList.toggle('hidden',x.st==='done');
+    $('timerView').dataset.state=stopped?'wait':x.st;
     $('soundWarn').classList.toggle('hidden',!soundOn||!!(actx&&actx.state==='running'));
     $('big').textContent=o.big; $('label').textContent=o.label; $('sub').textContent=o.sub;
     $('ring').style.strokeDashoffset=String(C*(1-Math.min(1,Math.max(0,o.p))));
     $('bar').style.width=(Math.min(1,Math.max(0,o.bar))*100)+'%';
     document.title=o.tab+' · Study Timer';
-    if(lastKey!==null && x.key!==lastKey){
+    if(!stopped && lastKey!==null && x.key!==lastKey){
       if(x.st==='focus') chime('focus'); else if(x.st==='break') chime('break'); else if(x.st==='done') chime('done');
       if(x.st!=='wait') notify(o.label,o.sub);
     }
     lastKey=x.key;
-    updateMini(o,x.st);
+    updateMini(o,stopped?'wait':x.st);
   }
+  var stoppedKey=store('stt_stopped')||null;
+  $('stopBtn').onclick=function(){
+    if(!cfg||!eff) return;
+    var k=cfg.code+'|'+eff.s;
+    stoppedKey=(stoppedKey===k)?null:k;
+    store('stt_stopped',stoppedKey);
+    toast(stoppedKey?'Stopped on this device':'Following the group timer again');
+    render();
+  };
   function startTicking(){ stopTicking(); render(); tick=setInterval(render,250); }
   function stopTicking(){ if(tick){clearInterval(tick); tick=null;} }
   document.addEventListener('visibilitychange',function(){ if(!document.hidden){ render(); requestWake(); } });
