@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Together Timer</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0f1420">
+<style>
+.soundwarn{background:#1d3557;color:#dbeafe;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:16px;text-align:center}
+:root{
+  --bg:#0f1420; --card:#171e2e; --card2:#1e2740; --text:#eef2fb; --muted:#93a0bd; --line:#2a3550;
+  --focus:#4ade80; --break:#fbbf24; --wait:#60a5fa; --done:#c084fc; --accent:var(--wait);
+  --btn:#2a3550; --btnText:#eef2fb; --danger:#f87171;
+}
+:root[data-theme="light"]{
+  --bg:#f3f5fa; --card:#ffffff; --card2:#eef1f8; --text:#141a2a; --muted:#5d6985; --line:#d9dfec;
+  --focus:#16a34a; --break:#d97706; --wait:#2563eb; --done:#9333ea; --btn:#e4e9f4; --btnText:#141a2a;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f3f5fa; --card:#ffffff; --card2:#eef1f8; --text:#141a2a; --muted:#5d6985; --line:#d9dfec;
+    --focus:#16a34a; --break:#d97706; --wait:#2563eb; --done:#9333ea; --btn:#e4e9f4; --btnText:#141a2a;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;padding:0 16px 40px}
+header{max-width:720px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brand{font-weight:700;letter-spacing:.2px;font-size:18px}
+.brand span{color:var(--focus)}
+main{max-width:720px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px}
+h2{margin:0 0 14px;font-size:17px}
+label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+input,select{width:100%;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;font-family:inherit}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--wait);outline-offset:1px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:90px}
+.seg{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;border:0;background:transparent;color:var(--muted);padding:9px;border-radius:9px;font-size:14px;cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--btn);color:var(--btnText);font-weight:600}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{border:1px solid var(--line);background:var(--card2);color:var(--text);padding:7px 12px;border-radius:999px;font-size:13px;cursor:pointer;font-family:inherit}
+.chip:hover{border-color:var(--focus)}
+.btn{border:0;background:var(--btn);color:var(--btnText);padding:11px 16px;border-radius:11px;font-size:14px;cursor:pointer;font-weight:600;font-family:inherit}
+.btn:hover{filter:brightness(1.12)}
+.btn.primary{background:var(--focus);color:#06210f;width:100%;padding:14px;font-size:16px;margin-top:18px}
+.btn.small{padding:8px 12px;font-size:13px}
+.summary{margin-top:14px;font-size:14px;color:var(--muted);background:var(--card2);border-radius:10px;padding:10px 12px}
+.err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
+.hidden{display:none!important}
+.recent{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.recent:first-of-type{border-top:0}
+.recent small{color:var(--muted)}
+.banner{background:#3b2a05;color:#fde68a;border:1px solid #7a5a10;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+:root[data-theme="light"] .banner{background:#fef3c7;color:#78350f;border-color:#f5d78a}
+
+/* timer view */
+#timerView{--accent:var(--wait)}
+#timerView[data-state="focus"]{--accent:var(--focus)}
+#timerView[data-state="break"]{--accent:var(--break)}
+#timerView[data-state="wait"]{--accent:var(--wait)}
+#timerView[data-state="done"]{--accent:var(--done)}
+.stage{text-align:center;padding:28px 16px 24px}
+.sname{font-size:15px;color:var(--muted);margin-bottom:10px;word-break:break-word}
+.ringwrap{position:relative;width:min(78vw,320px);aspect-ratio:1;margin:6px auto}
+.ringwrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ringbg{fill:none;stroke:var(--card2);stroke-width:12}
+.ringfg{fill:none;stroke:var(--accent);stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset .3s linear,stroke .3s}
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#big{font-size:clamp(40px,12vw,64px);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+#label{margin-top:4px;color:var(--accent);font-weight:600;font-size:15px}
+#sub{margin-top:16px;color:var(--muted);font-size:14px;line-height:1.5}
+.bar{height:6px;background:var(--card2);border-radius:99px;margin:18px auto 0;max-width:420px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s linear}
+.tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:22px}
+.invite .linkbox{display:flex;gap:8px}
+.invite .linkbox input{flex:1}
+.hint{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:9}
+.toast.show{opacity:1}
+body.fs header,body.fs .invite,body.fs .tools .nofs{display:none}
+/* compact strip for split-screen / floating windows on phones and tablets */
+@media (max-height:540px),(max-width:380px){
+  body.intimer header,body.intimer #timerView .invite,body.intimer #timerView .tools,body.intimer #timerView .sname,body.intimer #timerView .bar{display:none}
+  body.intimer{padding:0 8px 8px}
+  body.intimer .stage{padding:10px 6px}
+  body.intimer .ringwrap{width:min(78vw,62vh,230px)}
+  body.intimer #big{font-size:clamp(30px,9vw,46px)}
+  body.intimer #sub{margin-top:6px;font-size:12px}
+  body.intimer .card{margin-bottom:8px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Study<span>Together</span> Timer</div>
+  <button class="btn small" id="themeBtn" title="Switch theme">Theme</button>
+</header>
+
+<main>
+  <div id="fileWarn" class="banner hidden">
+    You opened this as a local file. It works, but invite links only work for others once this page is hosted online (free, takes 1 minute — see the steps I sent with it).
+  </div>
+
+  <!-- CREATE VIEW -->
+  <section id="createView">
+    <div class="card">
+      <h2>New group timer</h2>
+      <label for="name">Session name (optional)</label>
+      <input id="name" maxlength="60" placeholder="e.g. Evening study — Group 2">
+
+      <label>Timer type</label>
+      <div class="seg" id="modeSeg">
+        <button data-mode="count" class="on">One countdown</button>
+        <button data-mode="pomo">Focus + breaks</button>
+      </div>
+
+      <div id="countFields">
+        <div class="row">
+          <div><label for="h">Hours</label><input id="h" type="number" min="0" max="12" value="2"></div>
+          <div><label for="m">Minutes</label><input id="m" type="number" min="0" max="59" value="0"></div>
+        </div>
+        <div class="chips" id="countChips">
+          <button class="chip" data-h="1" data-m="0">1 h</button>
+          <button class="chip" data-h="1" data-m="30">1 h 30</button>
+          <button class="chip" data-h="2" data-m="0">2 h</button>
+          <button class="chip" data-h="3" data-m="0">3 h</button>
+          <button class="chip" data-h="4" data-m="0">4 h</button>
+        </div>
+      </div>
+
+      <div id="pomoFields" class="hidden">
+        <div class="row">
+          <div><label for="f">Focus (min)</label><input id="f" type="number" min="1" max="240" value="50"></div>
+          <div><label for="b">Break (min)</label><input id="b" type="number" min="1" max="60" value="10"></div>
+          <div><label for="c">Rounds</label><input id="c" type="number" min="1" max="20" value="3"></div>
+        </div>
+        <div class="chips" id="pomoChips">
+          <button class="chip" data-f="25" data-b="5" data-c="4">25 / 5 × 4</button>
+          <button class="chip" data-f="50" data-b="10" data-c="3">50 / 10 × 3</button>
+          <button class="chip" data-f="90" data-b="15" data-c="2">90 / 15 × 2</button>
+        </div>
+      </div>
+
+      <label for="repeat">Repeat</label>
+      <select id="repeat">
+        <option value="once">Just once</option>
+        <option value="daily">Every day at the same time (one permanent link)</option>
+      </select>
+
+      <div id="onceStart">
+        <label for="startIn">Start</label>
+        <select id="startIn">
+          <option value="0">Right now</option>
+          <option value="1">In 1 minute</option>
+          <option value="2">In 2 minutes</option>
+          <option value="5">In 5 minutes</option>
+          <option value="10">In 10 minutes</option>
+          <option value="15">In 15 minutes</option>
+          <option value="30">In 30 minutes</option>
+        </select>
+      </div>
+      <div id="dailyStart" class="hidden">
+        <label for="dailyTime">Daily start time (your local time)</label>
+        <input id="dailyTime" type="time" value="21:00">
+        <div class="hint">Make the link once. Everyone bookmarks or installs it, and it shows the next session automatically every day. No need to create or share anything again.</div>
+      </div>
+
+      <div class="summary" id="summary"></div>
+      <div class="err" id="err"></div>
+      <button class="btn primary" id="createBtn">Create timer &amp; get invite link</button>
+    </div>
+
+  </section>
+
+  <!-- TIMER VIEW -->
+  <section id="timerView" class="hidden" data-state="wait">
+    <div id="soundWarn" class="soundwarn hidden">Tap anywhere on this page once to switch the sound on.</div>
+    <div class="card stage">
+      <div class="sname" id="sname"></div>
+      <div class="ringwrap">
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="ringbg" cx="100" cy="100" r="90"></circle>
+          <circle class="ringfg" id="ring" cx="100" cy="100" r="90" stroke-dasharray="565.49" stroke-dashoffset="565.49"></circle>
+        </svg>
+        <div class="center">
+          <div id="big" aria-live="off">00:00</div>
+          <div id="label"></div>
+        </div>
+      </div>
+      <div id="sub"></div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="tools">
+        <button class="btn small" id="miniBtn" title="Small floating window you can keep over Google Meet">Floating window</button>
+        <button class="btn small" id="fsBtn">Full screen</button>
+        <button class="btn small" id="soundBtn">Sound: on</button>
+        <button class="btn small" id="alertBtn">Alerts: off</button>
+        <button class="btn small" id="stopBtn" title="Stop following this session on this device">Stop</button>
+        <button class="btn small nofs" id="newBtn">New timer</button>
+      </div>
+    </div>
+
+    <div class="card invite">
+      <h2>Invite your group</h2>
+      <div class="linkbox">
+        <input id="linkOut" readonly>
+        <button class="btn" id="copyLink">Copy link</button>
+      </div>
+      <div class="tools" style="justify-content:flex-start">
+        <button class="btn small" id="copyMsg">Copy invite message</button>
+        <button class="btn small" id="copyCode">Copy code only</button>
+        <button class="btn small" id="testSound">Test sound</button>
+      </div>
+      <div class="hint hidden" id="mobHint"><b>On a phone or tablet:</b> tap <b>Floating window</b> first, then open Meet. The timer stays on top of the Meet app.</div>
+      <div class="hint hidden" id="dailyHint"><b>Daily timer:</b> this link never expires. Bookmark it or install it as an app on your phone or laptop and it will show the next session every day.</div>
+      <div class="hint">Paste the link in your Meet chat or WhatsApp group. Everyone who opens it sees the same countdown, on any phone or laptop, without anyone sharing a screen. The timer is based on one shared start time, so it stays in sync even if someone closes the tab and comes back.</div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+//#region core
+function compute(cfg, tMs){
+  var f=cfg.f*60, b=cfg.b*60, c=cfg.c;
+  var total=c*f+(c-1)*b, cyc=f+b;
+  var e=(tMs-cfg.s*1000)/1000;
+  if(e<0) return {st:'wait',toStart:-e,total:total,key:'wait'};
+  if(e>=total) return {st:'done',total:total,focused:c*f,key:'done'};
+  var k=Math.floor(e/cyc), r=e-k*cyc, inFocus=r<f;
+  var pStart=k*cyc+(inFocus?0:f);
+  var pEnd=inFocus?k*cyc+f:(k+1)*cyc;
+  return {st:inFocus?'focus':'break',idx:k+1,phaseLen:pEnd-pStart,phaseRem:pEnd-e,
+          total:total,rem:total-e,el:e,focused:k*f+Math.min(r,f),key:(inFocus?'f':'b')+(k+1)};
+}
+function encodeCfg(cfg){
+  if(cfg.daily) return 'd'+(cfg.tz+1000)+'.'+cfg.startMin+'.'+cfg.f+'.'+cfg.b+'.'+cfg.c;
+  return Math.floor(cfg.s).toString(36)+'.'+cfg.f+'.'+cfg.b+'.'+cfg.c;
+}
+function effective(cfg,tMs){
+  if(!cfg.daily) return cfg;
+  var DAY=86400000, z=cfg.tz*60000;
+  var day=Math.floor((tMs+z)/DAY);
+  var st=day*DAY+cfg.startMin*60000-z;
+  if(st>tMs) st-=DAY;
+  var total=(cfg.c*cfg.f*60+(cfg.c-1)*cfg.b*60)*1000, s, next=false;
+  if(tMs<st+total+600000) s=st;      // running, or just finished (kept on screen for 10 min)
+  else { s=st+DAY; next=true; }
+  return {s:Math.floor(s/1000),f:cfg.f,b:cfg.b,c:cfg.c,daily:true,next:next};
+}
+function decodeCfg(code){
+  code=(code||'').trim();
+  var d=/^d(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(code);
+  if(d){
+    var q={daily:true,tz:+d[1]-1000,startMin:+d[2],f:+d[3],b:+d[4],c:+d[5]};
+    if(!(q.tz>=-840&&q.tz<=840&&q.startMin>=0&&q.startMin<1440&&q.f>=1&&q.f<=720&&q.b>=0&&q.b<=120&&q.c>=1&&q.c<=20)) return null;
+    if(q.c===1) q.b=0;
+    return q;
+  }
+  var m=/^([0-9a-z]+)\.(\d+)\.(\d+)\.(\d+)$/i.exec((code||'').trim());
+  if(!m) return null;
+  var cfg={s:parseInt(m[1],36),f:+m[2],b:+m[3],c:+m[4]};
+  if(!(cfg.s>1e9&&cfg.s<4e9)) return null;
+  if(!(cfg.f>=1&&cfg.f<=720&&cfg.b>=0&&cfg.b<=120&&cfg.c>=1&&cfg.c<=20)) return null;
+  if(cfg.c===1) cfg.b=0;
+  return cfg;
+}
+function fmt(sec){
+  sec=Math.max(0,Math.ceil(sec-1e-9));
+  var h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60;
+  var p=function(n){return String(n).padStart(2,'0')};
+  return h>0 ? h+':'+p(m)+':'+p(s) : p(m)+':'+p(s);
+}
+function fmtDur(sec){
+  var mins=Math.round(sec/60), h=Math.floor(mins/60), m=mins%60;
+  if(h===0) return m+' min';
+  return h+' h'+(m?' '+String(m).padStart(2,'0')+' min':'');
+}
+function totalSec(cfg){ return cfg.c*cfg.f*60+(cfg.c-1)*cfg.b*60; }
+//#endregion core
+
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var eff=null, alertsOn=false;
+  var offset=0, cfg=null, lastKey=null, soundOn=true, actx=null, mini=null, wake=null, mode='count';
+  var tick=null;
+  var now=function(){return Date.now()+offset};
+  var clock=function(ms){return new Date(ms).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})};
+
+  /* ---------- helpers ---------- */
+  function toast(msg){
+    var t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t=setTimeout(function(){t.classList.remove('show')},2200);
+  }
+  function copy(text){
+    var done=function(){toast('Copied')};
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){fallback()});
+    } else fallback();
+    function fallback(){
+      var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{document.execCommand('copy'); done();}catch(e){toast('Select the link and copy it manually')}
+      document.body.removeChild(ta);
+    }
+  }
+  function store(key,val){ try{ if(val===undefined) return JSON.parse(localStorage.getItem(key)); localStorage.setItem(key,JSON.stringify(val)); }catch(e){ return null; } }
+
+  /* ---------- theme ---------- */
+  var th=store('stt_theme');
+  if(th) document.documentElement.dataset.theme=th;
+  $('themeBtn').onclick=function(){
+    var cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
+    var nx=cur==='dark'?'light':'dark';
+    document.documentElement.dataset.theme=nx; store('stt_theme',nx);
+  };
+
+  /* ---------- sound ---------- */
+  document.addEventListener('pointerdown',function(){
+    try{
+      if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+      if(actx.state==='suspended') actx.resume();
+    }catch(e){}
+  });
+  function chime(kind){
+    if(!soundOn||!actx) return;
+    try{
+      var seq=kind==='break'?[660,880]:kind==='focus'?[880,660]:kind==='done'?[523,659,784,1047]:[784,988];
+      var t0=actx.currentTime;
+      seq.forEach(function(fr,i){
+        var o=actx.createOscillator(), g=actx.createGain(), at=t0+i*0.28;
+        o.type='sine'; o.frequency.value=fr;
+        g.gain.setValueAtTime(0.0001,at);
+        g.gain.exponentialRampToValueAtTime(0.3,at+0.04);
+        g.gain.exponentialRampToValueAtTime(0.0001,at+0.55);
+        o.connect(g); g.connect(actx.destination); o.start(at); o.stop(at+0.6);
+      });
+    }catch(e){}
+    try{ if(navigator.vibrate) navigator.vibrate([150,80,150]); }catch(e){}
+  }
+  $('soundBtn').onclick=function(){
+    soundOn=!soundOn; $('soundBtn').textContent='Sound: '+(soundOn?'on':'off'); store('stt_sound',soundOn);
+  };
+  var sv=store('stt_sound'); if(sv===false){soundOn=false; $('soundBtn').textContent='Sound: off';}
+  $('testSound').onclick=function(){ var was=soundOn; soundOn=true; chime('done'); soundOn=was; };
+
+  /* ---------- create form ---------- */
+  function readForm(){
+    var f,b,c;
+    if(mode==='count'){ f=(+$('h').value||0)*60+(+$('m').value||0); b=0; c=1; }
+    else { f=+$('f').value; b=+$('b').value; c=+$('c').value; }
+    f=Math.round(f); b=Math.round(b); c=Math.round(c);
+    return {f:f,b:b,c:c};
+  }
+  function validate(v){
+    if(!(v.f>=1)) return 'Set a study time of at least 1 minute.';
+    if(v.f>720) return 'One block can be at most 12 hours.';
+    if(mode==='pomo'){
+      if(!(v.b>=1&&v.b<=120)) return 'Break must be between 1 and 120 minutes.';
+      if(!(v.c>=1&&v.c<=20)) return 'Rounds must be between 1 and 20.';
+    }
+    return '';
+  }
+  function clockMin(min){ return new Date(2000,0,1,Math.floor(min/60),min%60).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }
+  function dailyMin(){
+    var p=/^(\d{1,2}):(\d{2})$/.exec($('dailyTime').value||'');
+    return p?(+p[1])*60+(+p[2]):-1;
+  }
+  function isDaily(){ return $('repeat').value==='daily'; }
+  function updateSummary(){
+    var v=readForm(), e=validate(v), s=$('summary');
+    if(!e && isDaily()){
+      if(dailyMin()<0) e='Pick a daily start time.';
+      else if(totalSec(v)>23*3600) e='A daily session can be at most 23 hours long.';
+    }
+    if(e){ s.textContent=''; $('err').textContent=e; return; }
+    $('err').textContent='';
+    var tot=totalSec(v);
+    var txt=mode==='count'
+      ? 'Total '+fmtDur(tot)
+      : v.c+' × '+v.f+' min focus with '+(v.c-1)+' × '+v.b+' min break'+(v.c>2?'s':'')+' = '+fmtDur(tot);
+    if(isDaily()){
+      var sm=dailyMin();
+      s.textContent=txt+' · every day '+clockMin(sm)+' to '+clockMin((sm+Math.round(tot/60))%1440);
+    } else {
+      var startMs=now()+(+$('startIn').value)*60000;
+      s.textContent=txt+' · ends around '+clock(startMs+tot*1000);
+    }
+  }
+  $('repeat').addEventListener('change',function(){
+    $('onceStart').classList.toggle('hidden',isDaily());
+    $('dailyStart').classList.toggle('hidden',!isDaily());
+    updateSummary();
+  });
+  $('dailyTime').addEventListener('input',updateSummary);
+  document.querySelectorAll('#modeSeg button').forEach(function(btn){
+    btn.onclick=function(){
+      mode=btn.dataset.mode;
+      document.querySelectorAll('#modeSeg button').forEach(function(x){x.classList.toggle('on',x===btn)});
+      $('countFields').classList.toggle('hidden',mode!=='count');
+      $('pomoFields').classList.toggle('hidden',mode!=='pomo');
+      updateSummary();
+    };
+  });
+  document.querySelectorAll('#countChips .chip').forEach(function(ch){
+    ch.onclick=function(){ $('h').value=ch.dataset.h; $('m').value=ch.dataset.m; updateSummary(); };
+  });
+  document.querySelectorAll('#pomoChips .chip').forEach(function(ch){
+    ch.onclick=function(){ $('f').value=ch.dataset.f; $('b').value=ch.dataset.b; $('c').value=ch.dataset.c; updateSummary(); };
+  });
+  ['h','m','f','b','c','startIn'].forEach(function(id){ $(id).addEventListener('input',updateSummary); $(id).addEventListener('change',updateSummary); });
+
+  $('createBtn').onclick=function(){
+    updateSummary();
+    if($('err').textContent) return;
+    var v=readForm(), name=$('name').value.trim(), code;
+    if(isDaily()){
+      code=encodeCfg({daily:true,tz:-new Date().getTimezoneOffset(),startMin:dailyMin(),f:v.f,b:v.b,c:v.c});
+    } else {
+      var s=Math.floor((now()+(+$('startIn').value)*60000)/1000);
+      code=encodeCfg({s:s,f:v.f,b:v.b,c:v.c});
+    }
+    location.hash='t='+code+(name?'&n='+encodeURIComponent(name):'');
+  };
+
+  /* ---------- join ---------- */
+  function parseJoin(text){
+    text=(text||'').trim();
+    var m=/[#&?]t=([0-9a-z.]+)/i.exec(text), n=/[#&?]n=([^&\s]*)/.exec(text), code=m?m[1]:text;
+    var c=decodeCfg(code);
+    if(!c) return null;
+    var name=''; try{ name=n?decodeURIComponent(n[1]):''; }catch(e){}
+    return {code:code,name:name};
+  }
+
+  /* ---------- recent ---------- */
+  function addRecent(code,name){
+    var list=store('stt_recent')||[];
+    list=list.filter(function(x){return x.code!==code});
+    list.unshift({code:code,name:name||'',ts:Date.now()});
+    store('stt_recent',list.slice(0,6));
+  }
+  function showRecent(){
+    var box=$('recentList'); if(!box) return;
+    var list=store('stt_recent')||[];
+    box.textContent='';
+    list.forEach(function(it){
+      var c=decodeCfg(it.code); if(!c) return;
+      var row=document.createElement('div'); row.className='recent';
+      var left=document.createElement('div');
+      var a=document.createElement('div'); a.textContent=it.name||'Untitled session';
+      var sm=document.createElement('small');
+      if(c.daily){
+        sm.textContent='Every day at '+clockMin(c.startMin)+' · '+fmtDur(totalSec(c));
+      } else {
+        var end=c.s*1000+totalSec(c)*1000;
+        sm.textContent=new Date(c.s*1000).toLocaleString([], {day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})+' · '+fmtDur(totalSec(c))+(end<Date.now()?' · finished':'');
+      }
+      left.appendChild(a); left.appendChild(sm);
+      var b=document.createElement('button'); b.className='btn small'; b.textContent='Open';
+      b.onclick=function(){ location.hash='t='+it.code+(it.name?'&n='+encodeURIComponent(it.name):''); };
+      row.appendChild(left); row.appendChild(b); box.appendChild(row);
+    });
+    var rc=$('recentCard'); if(rc) rc.classList.toggle('hidden',!box.children.length);
+  }
+
+  /* ---------- routing ---------- */
+  function parseHash(){
+    var h=location.hash.replace(/^#/,''); if(!h) return null;
+    var p=new URLSearchParams(h), c=decodeCfg(p.get('t')); if(!c) return null;
+    c.name=p.get('n')||''; c.code=p.get('t'); return c;
+  }
+  function route(){
+    if(!location.hash){
+      // an installed app opens at the plain address, so reopen the last timer automatically
+      var last=store('stt_last');
+      if(last&&last.code){ try{ history.replaceState(null,'',location.pathname+location.search+'#t='+last.code+(last.name?'&n='+encodeURIComponent(last.name):'')); }catch(e){} }
+    }
+    var c=parseHash();
+    if(!c){
+      document.body.classList.remove('intimer');
+      cfg=null; stopTicking(); closeMini(); releaseWake();
+      $('timerView').classList.add('hidden'); $('createView').classList.remove('hidden');
+      document.title='Study Together Timer'; showRecent(); updateSummary(); return;
+    }
+    cfg=c; lastKey=null;
+    addRecent(c.code,c.name);
+    store('stt_last',{code:c.code,name:c.name});
+    document.body.classList.add('intimer');
+    $('createView').classList.add('hidden'); $('timerView').classList.remove('hidden');
+    $('sname').textContent=c.name||'Study session';
+    var base=location.href.split('#')[0];
+    var link=base+'#t='+c.code+(c.name?'&n='+encodeURIComponent(c.name):'');
+    $('linkOut').value=link;
+    $('dailyHint').classList.toggle('hidden',!c.daily);
+    startTicking(); requestWake();
+  }
+  window.addEventListener('hashchange',route);
+
+  $('newBtn').onclick=function(){ store('stt_last',null); history.pushState('',document.title,location.pathname+location.search); route(); };
+  $('copyLink').onclick=function(){ copy($('linkOut').value); };
+  $('copyCode').onclick=function(){ copy(cfg.code); };
+  $('copyMsg').onclick=function(){
+    var tot=totalSec(cfg);
+    var what=(cfg.c===1&&cfg.b===0)?fmtDur(tot)+' study countdown':cfg.c+' rounds of '+cfg.f+' min focus / '+cfg.b+' min break';
+    if(cfg.daily){
+      copy('Daily study timer'+(cfg.name?' - '+cfg.name:'')+'\n'+what+', every day at '+clockMin(cfg.startMin)+'.\nBookmark this permanent link: '+$('linkOut').value);
+      return;
+    }
+    var st=cfg.s*1000>now()?'starts at '+clock(cfg.s*1000):'started at '+clock(cfg.s*1000);
+    copy('Study timer'+(cfg.name?' - '+cfg.name:'')+'\n'+what+', '+st+', ends about '+clock(cfg.s*1000+tot*1000)+'.\nOpen this to see the same timer: '+$('linkOut').value);
+  };
+
+  /* ---------- render loop ---------- */
+  var C=565.49;
+  function view(x){
+    var single=(cfg.c===1&&cfg.b===0), o={};
+    var endTxt=clock(eff.s*1000+x.total*1000);
+    if(x.st==='wait'){
+      var when=new Date(eff.s*1000).toDateString()===new Date(now()).toDateString()?'today':'tomorrow';
+      o.big=fmt(x.toStart);
+      o.label=cfg.daily?'Next session '+when+' at '+clock(eff.s*1000):'Starts at '+clock(eff.s*1000);
+      o.p=0;
+      o.sub='Planned: '+fmtDur(x.total)+' · ends about '+endTxt; o.bar=0; o.tab='Starts in '+o.big;
+    } else if(x.st==='done'){
+      o.big='00:00'; o.label='Session complete'; o.p=1;
+      o.sub='Well done. You studied for '+fmtDur(x.focused)+' together.'+(cfg.daily?' Next session tomorrow at '+clockMin(cfg.startMin)+'.':''); o.bar=1; o.tab='Done';
+    } else if(single){
+      o.big=fmt(x.rem); o.label='Study time left'; o.p=x.el/x.total; o.bar=o.p;
+      o.sub='Ends at '+endTxt+' · '+fmtDur(x.el)+' done so far'; o.tab=o.big+' left';
+    } else {
+      o.big=fmt(x.phaseRem); o.p=x.phaseEl===undefined?(x.phaseLen-x.phaseRem)/x.phaseLen:0;
+      o.p=(x.phaseLen-x.phaseRem)/x.phaseLen;
+      o.label=(x.st==='focus'?'Focus':'Break')+' · round '+x.idx+' of '+cfg.c;
+      o.sub='Session ends at '+endTxt+' · '+fmtDur(x.rem)+' left in total'; o.bar=x.el/x.total;
+      o.tab=o.big+' '+(x.st==='focus'?'focus':'break');
+    }
+    return o;
+  }
+  function render(){
+    if(!cfg) return;
+    eff=effective(cfg,now());
+    var x=compute(eff,now()), o=view(x);
+    var stopped=(stoppedKey===cfg.code+'|'+eff.s)&&x.st!=='done';
+    if(stopped){ o={big:'--:--',label:'Stopped on this device',sub:'Tap Resume to follow the group timer again.',p:0,bar:0,tab:'Stopped'}; }
+    $('stopBtn').textContent=stopped?'Resume':'Stop';
+    $('stopBtn').classList.toggle('hidden',x.st==='done');
+    $('timerView').dataset.state=stopped?'wait':x.st;
+    $('soundWarn').classList.toggle('hidden',!soundOn||!!(actx&&actx.state==='running'));
+    $('big').textContent=o.big; $('label').textContent=o.label; $('sub').textContent=o.sub;
+    $('ring').style.strokeDashoffset=String(C*(1-Math.min(1,Math.max(0,o.p))));
+    $('bar').style.width=(Math.min(1,Math.max(0,o.bar))*100)+'%';
+    document.title=o.tab+' · Study Timer';
+    if(!stopped && lastKey!==null && x.key!==lastKey){
+      if(x.st==='focus') chime('focus'); else if(x.st==='break') chime('break'); else if(x.st==='done') chime('done');
+      if(x.st!=='wait') notify(o.label,o.sub);
+    }
+    lastKey=x.key;
+    updateMini(o,stopped?'wait':x.st);
+  }
+  var stoppedKey=store('stt_stopped')||null;
+  $('stopBtn').onclick=function(){
+    if(!cfg||!eff) return;
+    var k=cfg.code+'|'+eff.s;
+    stoppedKey=(stoppedKey===k)?null:k;
+    store('stt_stopped',stoppedKey);
+    toast(stoppedKey?'Stopped on this device':'Following the group timer again');
+    render();
+  };
+  function startTicking(){ stopTicking(); render(); tick=setInterval(render,250); }
+  function stopTicking(){ if(tick){clearInterval(tick); tick=null;} }
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden){ render(); requestWake(); } });
+
+  /* ---------- alerts (system notifications when the tab is hidden) ---------- */
+  function alertLabel(){ $('alertBtn').textContent='Alerts: '+(alertsOn?'on':'off'); }
+  try{ alertsOn=store('stt_alerts')===true && 'Notification' in window && Notification.permission==='granted'; }catch(e){}
+  alertLabel();
+  $('alertBtn').onclick=function(){
+    if(!('Notification' in window)){ toast('Alerts are not supported in this browser'); return; }
+    if(alertsOn){ alertsOn=false; store('stt_alerts',false); alertLabel(); return; }
+    Notification.requestPermission().then(function(p){
+      alertsOn=(p==='granted'); store('stt_alerts',alertsOn); alertLabel();
+      toast(alertsOn?'Alerts on':'Notifications are blocked in your browser settings');
+    });
+  };
+  function notify(title,body){
+    if(!alertsOn||!document.hidden) return;
+    try{
+      if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+        navigator.serviceWorker.ready.then(function(r){ r.showNotification(title,{body:body,tag:'stt'}); });
+      } else { new Notification(title,{body:body,tag:'stt'}); }
+    }catch(e){}
+  }
+
+  /* ---------- wake lock ---------- */
+  function requestWake(){
+    try{
+      if(cfg && 'wakeLock' in navigator && !document.hidden){
+        navigator.wakeLock.request('screen').then(function(l){wake=l}).catch(function(){});
+      }
+    }catch(e){}
+  }
+  function releaseWake(){ try{ if(wake){wake.release(); wake=null;} }catch(e){} }
+
+  /* ---------- fullscreen ---------- */
+  $('fsBtn').onclick=function(){
+    try{
+      if(document.fullscreenElement){ document.exitFullscreen(); }
+      else { document.documentElement.requestFullscreen().catch(function(){toast('Full screen not allowed here')}); }
+    }catch(e){ toast('Full screen not supported'); }
+  };
+  document.addEventListener('fullscreenchange',function(){
+    document.body.classList.toggle('fs',!!document.fullscreenElement);
+    $('fsBtn').textContent=document.fullscreenElement?'Exit full screen':'Full screen';
+  });
+
+  /* ---------- mini floating window ---------- */
+  var COL={focus:'#4ade80',break:'#fbbf24',wait:'#60a5fa',done:'#c084fc'};
+  /* phones and tablets: the timer is drawn onto a canvas, streamed into a tiny video,
+     and that video is put in picture-in-picture so it floats above other apps */
+  var pip={on:false,cv:null,g:null,vid:null,wk:null};
+  function isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/i.test(navigator.platform)); }
+  function drawPip(o,state){
+    var g=pip.g, w=pip.cv.width, h=pip.cv.height, col=COL[state]||'#ffffff';
+    g.fillStyle='#0f1420'; g.fillRect(0,0,w,h);
+    g.textAlign='center'; g.textBaseline='middle';
+    var fam='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+    // big digits, one short label, thin progress bar: readable even in a tiny window
+    var size=o.big.length>5?112:156;
+    g.fillStyle=col; g.font='700 '+size+'px '+fam;
+    while(g.measureText(o.big).width>w-24&&size>40){ size-=4; g.font='700 '+size+'px '+fam; }
+    g.fillText(o.big,w/2,h*0.40);
+    var ls=36; g.font='700 '+ls+'px '+fam;
+    while(g.measureText(o.label).width>w-30&&ls>16){ ls-=2; g.font='700 '+ls+'px '+fam; }
+    g.fillText(o.label,w/2,h*0.77);
+    g.fillStyle='#1e2740'; g.fillRect(24,h-20,w-48,9);
+    g.fillStyle=col; g.fillRect(24,h-20,(w-48)*Math.min(1,Math.max(0,o.p||0)),9);
+  }
+  function stopPip(){
+    var wasOn=pip.on; pip.on=false;
+    try{ if(pip.wk){ pip.wk.terminate(); pip.wk=null; } }catch(e){}
+    try{ if(document.pictureInPictureElement) document.exitPictureInPicture(); }catch(e){}
+    try{
+      if(pip.vid){
+        if(pip.vid.webkitPresentationMode==='picture-in-picture') pip.vid.webkitSetPresentationMode('inline');
+        pip.vid.pause(); pip.vid.srcObject=null; pip.vid.remove(); pip.vid=null;
+      }
+    }catch(e){}
+    $('miniBtn').textContent='Floating window';
+    return wasOn;
+  }
+  function startPipWorker(){
+    // a worker keeps ticking while the page is in the background
+    try{
+      var blob=new Blob(['setInterval(function(){postMessage(1)},500)'],{type:'text/javascript'});
+      var w=new Worker(URL.createObjectURL(blob));
+      w.onmessage=function(){ if(pip.on) render(); };
+      pip.wk=w;
+    }catch(e){}
+  }
+  function startVideoPip(){
+    var cv=document.createElement('canvas'); cv.width=480; cv.height=270;
+    if(!cv.captureStream){ toast('This browser cannot make a floating window. Try Chrome on Android.'); return; }
+    var vid=document.createElement('video');
+    vid.muted=true; vid.playsInline=true; vid.setAttribute('playsinline',''); vid.setAttribute('muted','');
+    vid.style.cssText='position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;pointer-events:none';
+    document.body.appendChild(vid);
+    pip.cv=cv; pip.g=cv.getContext('2d'); pip.vid=vid; pip.on=true;
+    render();
+    vid.srcObject=cv.captureStream(5);
+    var go=function(){
+      vid.play().then(function(){
+        if(vid.requestPictureInPicture) return vid.requestPictureInPicture();
+        if(vid.webkitSupportsPresentationMode&&vid.webkitSupportsPresentationMode('picture-in-picture')){ vid.webkitSetPresentationMode('picture-in-picture'); return; }
+        throw new Error('no-pip');
+      }).then(function(){
+        $('miniBtn').textContent='Close floating window'; startPipWorker();
+      }).catch(function(){ stopPip(); toast('A floating window is not available on this device or browser'); });
+    };
+    if(vid.readyState>=1) go(); else vid.addEventListener('loadedmetadata',go,{once:true});
+    vid.addEventListener('leavepictureinpicture',function(){ stopPip(); });
+    vid.addEventListener('webkitpresentationmodechanged',function(){ if(pip.on&&vid.webkitPresentationMode!=='picture-in-picture') stopPip(); });
+  }
+  if(isMobile()) $('mobHint').classList.remove('hidden');
+
+  function closeMini(){ try{ if(mini&&mini.win&&!mini.win.closed) mini.win.close(); }catch(e){} mini=null; if(pip.on) stopPip(); }
+  function buildMini(w){
+    var d=w.document;
+    d.title='Study timer';
+    var st=d.createElement('style');
+    st.textContent='html,body{margin:0;height:100%;background:#0f1420;color:#fff;font-family:system-ui,sans-serif}'+
+      'body{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}'+
+      '#t{font-size:52px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}'+
+      '#l{margin-top:8px;font-size:14px;font-weight:600}#s{margin-top:4px;font-size:12px;color:#93a0bd}';
+    d.head.appendChild(st);
+    var t=d.createElement('div'); t.id='t'; var l=d.createElement('div'); l.id='l'; var s=d.createElement('div'); s.id='s';
+    d.body.appendChild(t); d.body.appendChild(l); d.body.appendChild(s);
+    mini={win:w,t:t,l:l,s:s};
+    w.addEventListener('pagehide',function(){mini=null});
+  }
+  $('miniBtn').onclick=function(){
+    if(pip.on){ stopPip(); return; }
+    if(mini){ closeMini(); return; }
+    if(isMobile()){ startVideoPip(); return; }
+    var done=function(w){ if(!w){ toast('Pop-up blocked. Allow pop-ups for this page and try again.'); return; } buildMini(w); render(); };
+    if('documentPictureInPicture' in window){
+      documentPictureInPicture.requestWindow({width:300,height:170}).then(done).catch(function(){
+        done(window.open('','stt_mini','popup,width=300,height=170'));
+      });
+    } else {
+      done(window.open('','stt_mini','popup,width=300,height=170'));
+    }
+  };
+  function updateMini(o,state){
+    if(pip.on) drawPip(o,state);
+    if(!mini) return;
+    try{
+      if(mini.win.closed){mini=null;return;}
+      mini.t.textContent=o.big; mini.l.textContent=o.label; mini.s.textContent=o.sub;
+      mini.t.style.color=COL[state]||'#fff';
+    }catch(e){mini=null;}
+  }
+
+  /* ---------- clock skew (only corrects obviously wrong clocks) ---------- */
+  function syncClock(){
+    try{
+      if(location.protocol==='file:') return;
+      var t0=Date.now();
+      fetch(location.pathname+'?_='+t0,{method:'HEAD',cache:'no-store'}).then(function(r){
+        var d=r.headers.get('date'); if(!d) return;
+        var t1=Date.now(), srv=new Date(d).getTime()+500, local=(t0+t1)/2, diff=srv-local;
+        if(Math.abs(diff)>4000){ offset=diff; toast('Your device clock was off, so I corrected it.'); }
+      }).catch(function(){});
+    }catch(e){}
+  }
+
+  /* ---------- start ---------- */
+  if(location.protocol==='file:') $('fileWarn').classList.remove('hidden');
+  try{ if('serviceWorker' in navigator && location.protocol.indexOf('http')===0) navigator.serviceWorker.register('sw.js').catch(function(){}); }catch(e){}
+  syncClock();
+  route();
+  setInterval(function(){ if(!cfg) updateSummary(); },15000);
+})();
+</script>
+</body>
+</html>
